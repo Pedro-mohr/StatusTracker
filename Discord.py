@@ -103,44 +103,41 @@ async def disconnect(interaction: discord.Interaction):
 
 @bot.tree.command(name="play", description="Play a song from YouTube/Spotify")
 async def play(interaction: discord.Interaction, input: str):
-    from Youtube import play as yt_play, search_query, search_youtube
+    from Youtube import play as yt_play, search_youtube  # <-- ¡Solo importa search_youtube!
     
     try:
         if not interaction.user.voice:
             embed = discord.Embed(
-                title="Error",
-                description="❌ Join a voice channel first!",
+                title="❌ Error",
+                description="Join a voice channel first!",
                 color=discord.Color.red()
             )
             await interaction.response.send_message(embed=embed)
             return
 
-        # Determinar si es URL o búsqueda
-        if "youtube.com" in input or "youtu.be" in input:
-            title, url = await search_query(input)
-        else:
-            title, url = await search_youtube(input)
+        # Usar SOLO search_youtube (maneja URLs y búsquedas)
+        title, url = await search_youtube(input)
 
         if url:
             await yt_play(interaction, bot, url, title)
             embed = discord.Embed(
-                title="Song Added",
-                description=f"🎶 **{title}** added to the queue.",
-                color=discord.Color.blue()
+                title="🎶 Song Added",
+                description=f"**{title}** added to the queue.",
+                color=discord.Color.green()
             )
             await interaction.response.send_message(embed=embed)
         else:
             embed = discord.Embed(
-                title="Error",
-                description="⚠️ No results found.",
-                color=discord.Color.red()
+                title="⚠️ Error",
+                description="No results found.",
+                color=discord.Color.orange()
             )
             await interaction.response.send_message(embed=embed)
 
     except Exception as e:
         embed = discord.Embed(
-            title="Error",
-            description="❌ Failed to play the song.",
+            title="❌ Error",
+            description="Failed to play the song.",
             color=discord.Color.red()
         )
         await interaction.response.send_message(embed=embed)
