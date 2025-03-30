@@ -14,9 +14,9 @@ async def play(interaction, bot, url, track_name=None):
     channel = interaction.user.voice.channel
     if not channel:
         embed = discord.Embed(
-            title="Error",
-            description="❌ You are not in a voice channel.",
-            color=discord.Color.red(),
+            title="❌ Error",
+            description="You are not in a voice channel.",
+            color=discord.Color.red()
         )
         await interaction.response.send_message(embed=embed)
         return
@@ -25,79 +25,77 @@ async def play(interaction, bot, url, track_name=None):
     if not voice or not voice.is_connected():
         voice = await channel.connect()
 
-    # Obtener título usando la API de YouTube (evitar yt-dlp para metadata)
+    # Obtener título con API de YouTube
     try:
-        video_id = url.split("v=")[-1].split("&")[0]  # Extraer ID de URL
+        video_id = url.split("v=")[-1].split("&")[0]
         youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
         request = youtube.videos().list(part="snippet", id=video_id)
         response = request.execute()
 
         if not response["items"]:
-            await interaction.followup.send("⚠️ Invalid YouTube URL.")
+            embed = discord.Embed(
+                title="⚠️ Error",
+                description="Invalid YouTube URL.",
+                color=discord.Color.orange()
+            )
+            await interaction.followup.send(embed=embed)
             return
 
         title = response["items"][0]["snippet"]["title"]
 
     except (IndexError, HttpError):
-        # Fallback a yt-dlp solo para URLs complejas
+        # Fallback a yt-dlp para URLs complejas
         with youtube_dl.YoutubeDL({"quiet": True}) as ydl:
             info = ydl.extract_info(url, download=False)
             title = info["title"]
 
-    # Añadir a la playlist
+    # Añadir a la playlist con embed
     if track_name:
         playlist.append((track_name, url))
-        await interaction.followup.send(f"🎶 Added **{track_name}** to the queue.")
+        embed = discord.Embed(
+            title="🎶 Song Added",
+            description=f"**{track_name}** added to the queue.",
+            color=discord.Color.green()
+        )
     else:
         playlist.append((title, url))
-        await interaction.followup.send(f"🎶 Added **{title}** to the queue.")
+        embed = discord.Embed(
+            title="🎶 Song Added",
+            description=f"**{title}** added to the queue.",
+            color=discord.Color.green()
+        )
+
+    await interaction.followup.send(embed=embed)
 
     if not voice.is_playing():
         await play_next(interaction, voice)
-
-async def search_youtube(query):
-    """Búsqueda usando la API oficial de YouTube (sin yt-dlp)"""
-    try:
-        youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
-        request = youtube.search().list(
-            q=query,
-            part="snippet",
-            type="video",
-            maxResults=1
-        )
-        response = request.execute()
-        
-        if not response["items"]:
-            return None, None
-
-        video_id = response["items"][0]["id"]["videoId"]
-        title = response["items"][0]["snippet"]["title"]
-        return title, f"https://youtu.be/{video_id}"
-
-    except HttpError as e:
-        print(f"YouTube API Error: {e}")
-        return None, None
 
 async def play_next(interaction, voice):
     global playlist
     if playlist:
         title, url = playlist.popleft()
 
-        # Usar yt-dlp SOLO para extraer el stream de audio
-        ydl_opts = {
-            "format": "bestaudio/best",
-            "quiet": True,
-            "noplaylist": True,
-        }
+        # Extraer stream de audio
         try:
+            ydl_opts = {
+                "format": "bestaudio/best",
+                "quiet": True,
+                "noplaylist": True,
+            }
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 stream_url = info["url"]
         except Exception as e:
-            await interaction.followup.send("❌ Failed to process the video.")
+            embed = discord.Embed(
+                title="❌ Error",
+                description="Failed to process the video.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed)
             print(f"Stream Error: {e}")
             return
 
+        # Reproducir
         ffmpeg_opts = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             "options": "-vn",
@@ -110,6 +108,16 @@ async def play_next(interaction, voice):
         voice.source = discord.PCMVolumeTransformer(voice.source)
         voice.source.volume = 0.10
 
-        await interaction.followup.send(f"🎶 Now playing **{title}**.")
+        embed = discord.Embed(
+            title="🎵 Now Playing",
+            description=f"**{title}**",
+            color=discord.Color.blue()
+        )
+        await interaction.followup.send(embed=embed)
     else:
-        await interaction.followup.send("🎶 The queue is empty.")
+        embed = discord.Embed(
+            title="🎶 Queue Empty",
+            description="The playlist has ended.",
+            color=discord.Color.gold()
+        )
+        await interaction.followup.send(embed=embed)
