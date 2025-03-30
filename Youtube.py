@@ -95,6 +95,29 @@ async def play_next(interaction, voice):
             print(f"Stream Error: {e}")
             return
 
+async def search_youtube(query: str):
+    """Busca un video en YouTube usando la API oficial."""
+    try:
+        youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+        request = youtube.search().list(
+            q=query,
+            part="snippet",
+            type="video",
+            maxResults=1
+        )
+        response = request.execute()
+        
+        if not response["items"]:
+            return None, None
+
+        video_id = response["items"][0]["id"]["videoId"]
+        title = response["items"][0]["snippet"]["title"]
+        return title, f"https://youtu.be/{video_id}"
+
+    except HttpError as e:
+        print(f"🔴 YouTube API Error: {e}")
+        return None, None
+        
         # Reproducir
         ffmpeg_opts = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
