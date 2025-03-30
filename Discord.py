@@ -3,16 +3,13 @@ import os
 from collections import deque
 from discord.ext import commands
 from discord.utils import get
-import yt_dlp as youtube_dl
 from webserver import keep_alive
 
-# Inicializar bot y configuraciones
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 playlist = deque()
 
-# ---------------------------- BOT EVENTS ----------------------------
 @bot.event
 async def on_ready():
     print(f"✅ Bot Online: {bot.user}")
@@ -20,51 +17,45 @@ async def on_ready():
         activity=discord.Activity(type=discord.ActivityType.listening, name="/help")
     )
     await bot.tree.sync()
-    keep_alive()  # Activar servidor web para Render
+    keep_alive()
 
-# ---------------------------- SLASH COMMANDS ----------------------------
-@bot.tree.command(name="help", description="Show all available commands")
+@bot.tree.command(name="help", description="Show all commands")
 async def help(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="🎵 Music Bot Commands",
-        description="**List of commands:**\n",
+        title="🎵 Bot Commands",
+        description="**Available commands:**\n",
         color=discord.Color.blue()
     )
-    
-    # Comandos de voz
     embed.add_field(
-        name="🎧 Voice Control",
+        name="🎧 Voice",
         value=(
-            "`/connect` - Join the bot to your voice channel\n"
-            "`/disconnect` - Disconnect the bot\n"
+            "`/connect` - Join voice channel\n"
+            "`/disconnect` - Leave voice channel\n"
         ),
         inline=False
     )
-    
-    # Comandos de música
     embed.add_field(
-        name="🎶 Music Controls",
+        name="🎶 Music",
         value=(
-            "`/play [query/url]` - Play from YouTube/Spotify\n"
-            "`/skip` - Skip current song\n"
-            "`/pause` - Pause playback\n"
-            "`/resume` - Resume playback\n"
-            "`/queue` - Show current queue\n"
+            "`/play [query/url]` - Play music\n"
+            "`/skip` - Skip song\n"
+            "`/pause` - Pause\n"
+            "`/resume` - Resume\n"
+            "`/queue` - Show queue\n"
         ),
         inline=False
     )
-    
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="connect", description="Connect the bot to your voice channel")
+@bot.tree.command(name="connect", description="Join voice channel")
 async def connect(interaction: discord.Interaction):
     voice = get(bot.voice_clients, guild=interaction.guild)
     channel = interaction.user.voice.channel
 
     if not channel:
         embed = discord.Embed(
-            title="Error",
-            description="❌ You must be in a voice channel!",
+            title="❌ Error",
+            description="Join a voice channel first!",
             color=discord.Color.red()
         )
         await interaction.response.send_message(embed=embed)
@@ -77,34 +68,16 @@ async def connect(interaction: discord.Interaction):
 
     playlist.clear()
     embed = discord.Embed(
-        title="Connected",
-        description="🎶 Bot joined the voice channel.",
+        title="✅ Connected",
+        description="Bot joined the voice channel.",
         color=discord.Color.green()
     )
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="disconnect", description="Disconnect the bot")
-async def disconnect(interaction: discord.Interaction):
-    voice = get(bot.voice_clients, guild=interaction.guild)
-    if voice and voice.is_connected():
-        await voice.disconnect()
-        embed = discord.Embed(
-            title="Disconnected",
-            description="🎶 Bot left the voice channel.",
-            color=discord.Color.green()
-        )
-    else:
-        embed = discord.Embed(
-            title="Error",
-            description="⚠️ Bot is not connected!",
-            color=discord.Color.red()
-        )
-    await interaction.response.send_message(embed=embed)
-
-@bot.tree.command(name="play", description="Play a song from YouTube/Spotify")
+@bot.tree.command(name="play", description="Play a song")
 async def play(interaction: discord.Interaction, input: str):
-    from Youtube import play as yt_play, search_youtube  # <-- ¡Solo importa search_youtube!
-    
+    from Youtube import play as yt_play, search_youtube
+
     try:
         if not interaction.user.voice:
             embed = discord.Embed(
@@ -115,17 +88,10 @@ async def play(interaction: discord.Interaction, input: str):
             await interaction.response.send_message(embed=embed)
             return
 
-        # Usar SOLO search_youtube (maneja URLs y búsquedas)
         title, url = await search_youtube(input)
 
         if url:
             await yt_play(interaction, bot, url, title)
-            embed = discord.Embed(
-                title="🎶 Song Added",
-                description=f"**{title}** added to the queue.",
-                color=discord.Color.green()
-            )
-            await interaction.response.send_message(embed=embed)
         else:
             embed = discord.Embed(
                 title="⚠️ Error",
@@ -143,27 +109,96 @@ async def play(interaction: discord.Interaction, input: str):
         await interaction.response.send_message(embed=embed)
         print(f"Error: {e}")
 
-@bot.tree.command(name="queue", description="Show the current queue")
+@bot.tree.command(name="queue", description="Show queue")
 async def queue(interaction: discord.Interaction):
-    from Controls import show_queue
-    await show_queue(interaction)
+    from Youtube import playlist
+    if not playlist:
+        embed = discord.Embed(
+            title="🎶 Queue",
+            description="The queue is empty.",
+            color=discord.Color.gold()
+        )
+    else:
+        songs = "\n".join([f"**{i+1}.** {title}" for i, (title, _) in enumerate(playlist)])
+        embed = discord.Embed(
+            title="🎵 Current Queue",
+            description=songs,
+            color=discord.Color.blue()
+        )
+    await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="skip", description="Skip the current song")
+@bot.tree.command(name="skip", description="Skip current song")
 async def skip(interaction: discord.Interaction):
-    from Controls import skip_song
-    await skip_song(interaction)
+    voice = get(bot.voice_clients, guild=interaction.guild)
+    if voice and voice.is_playing():
+        voice.stop()
+        embed = discord.Embed(
+            title="⏭️ Skipped",
+            description="Current song skipped.",
+            color=discord.Color.green()
+        )
+    else:
+        embed = discord.Embed(
+            title="⚠️ Error",
+            description="No music is playing.",
+            color=discord.Color.red()
+        )
+    await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="pause", description="Pause the playback")
+@bot.tree.command(name="pause", description="Pause music")
 async def pause(interaction: discord.Interaction):
-    from Controls import pause_music
-    await pause_music(interaction)
+    voice = get(bot.voice_clients, guild=interaction.guild)
+    if voice and voice.is_playing():
+        voice.pause()
+        embed = discord.Embed(
+            title="⏸️ Paused",
+            description="Playback paused.",
+            color=discord.Color.orange()
+        )
+    else:
+        embed = discord.Embed(
+            title="⚠️ Error",
+            description="No music is playing.",
+            color=discord.Color.red()
+        )
+    await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="resume", description="Resume the playback")
+@bot.tree.command(name="resume", description="Resume music")
 async def resume(interaction: discord.Interaction):
-    from Controls import resume_music
-    await resume_music(interaction)
+    voice = get(bot.voice_clients, guild=interaction.guild)
+    if voice and voice.is_paused():
+        voice.resume()
+        embed = discord.Embed(
+            title="▶️ Resumed",
+            description="Playback resumed.",
+            color=discord.Color.green()
+        )
+    else:
+        embed = discord.Embed(
+            title="⚠️ Error",
+            description="No music is paused.",
+            color=discord.Color.red()
+        )
+    await interaction.response.send_message(embed=embed)
 
-# ---------------------------- EJECUCIÓN ----------------------------
+@bot.tree.command(name="disconnect", description="Disconnect bot")
+async def disconnect(interaction: discord.Interaction):
+    voice = get(bot.voice_clients, guild=interaction.guild)
+    if voice and voice.is_connected():
+        await voice.disconnect()
+        embed = discord.Embed(
+            title="✅ Disconnected",
+            description="Bot left the voice channel.",
+            color=discord.Color.green()
+        )
+    else:
+        embed = discord.Embed(
+            title="⚠️ Error",
+            description="Bot is not connected!",
+            color=discord.Color.red()
+        )
+    await interaction.response.send_message(embed=embed)
+
 if __name__ == "__main__":
-    keep_alive()  # Iniciar servidor web
-    bot.run(os.getenv("DISCORD_BOT_TOKEN"))  # Token desde variables de entorno
+    keep_alive()
+    bot.run(os.getenv("DISCORD_BOT_TOKEN"))
