@@ -18,7 +18,7 @@ async def play(interaction, bot, url, track_name=None):
             description="You are not in a voice channel.",
             color=discord.Color.red()
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)  # Usar followup, no response
         return
 
     voice = get(bot.voice_clients, guild=interaction.guild)
@@ -49,7 +49,7 @@ async def play(interaction, bot, url, track_name=None):
             info = ydl.extract_info(url, download=False)
             title = info["title"]
 
-    # Añadir a la playlist con embed
+   # Añadir a la playlist con embed
     if track_name:
         playlist.append((track_name, url))
         embed = discord.Embed(
@@ -65,7 +65,7 @@ async def play(interaction, bot, url, track_name=None):
             color=discord.Color.green()
         )
 
-    await interaction.followup.send(embed=embed)
+    await interaction.followup.send(embed=embed)  # Enviar como followup
 
     if not voice.is_playing():
         await play_next(interaction, voice)
