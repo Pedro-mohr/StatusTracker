@@ -1,40 +1,46 @@
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-from Youtube import playlist
 import os
 
-# Eliminar import de 'credenciales'
+# Configurar Spotipy con variables de entorno
 sp = spotipy.Spotify(
     auth_manager=SpotifyClientCredentials(
-        client_id=os.getenv("SPOTIFY_CLIENT_ID"),  # Variables de entorno
+        client_id=os.getenv("SPOTIFY_CLIENT_ID"),
         client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
     )
 )
 
-def get_spotify_info(url: str):
-    if "track" in url:
-        track = sp.track(url)
-        title = track["name"]
-        artists = ", ".join(artist["name"] for artist in track["artists"])
-        return [f"{title} - {artists}"]
-    
-    elif "playlist" in url:
-        playlist_data = sp.playlist(url)
-        songs = []
-        for item in playlist_data["tracks"]["items"]:
-            track = item["track"]
+def get_spotify_tracks(url: str):
+    """Obtiene las canciones de un enlace de Spotify (track/playlist/album)."""
+    try:
+        if "track" in url:
+            track = sp.track(url)
             title = track["name"]
-            artists = ", ".join(artist["name"] for artist in track["artists"])
-            songs.append(f"{title} - {artists}")
-        return songs
-    
-    elif "album" in url:
-        album = sp.album(url)
-        songs = [
-            f"{track['name']} - {', '.join(artist['name'] for artist in track['artists'])}"
-            for track in album["tracks"]["items"]
-        ]
-        return songs
-    
-    else:
+            artist = ", ".join(a["name"] for a in track["artists"])
+            return [f"{title} - {artist}"]
+        
+        elif "playlist" in url:
+            playlist = sp.playlist(url)
+            tracks = []
+            for item in playlist["tracks"]["items"]:
+                track = item["track"]
+                title = track["name"]
+                artist = ", ".join(a["name"] for a in track["artists"])
+                tracks.append(f"{title} - {artist}")
+            return tracks
+        
+        elif "album" in url:
+            album = sp.album(url)
+            tracks = []
+            for track in album["tracks"]["items"]:
+                title = track["name"]
+                artist = ", ".join(a["name"] for a in track["artists"])
+                tracks.append(f"{title} - {artist}")
+            return tracks
+        
+        else:
+            return None
+
+    except Exception as e:
+        print(f"🔴 Spotify Error: {e}")
         return None
