@@ -76,7 +76,7 @@ async def connect(interaction: discord.Interaction):
 
 @bot.tree.command(name="play", description="Play a song")
 async def play(interaction: discord.Interaction, input: str):
-    from Youtube import play as yt_play, search_youtube
+    await interaction.response.defer()  # ¡Primera línea del comando!
 
     await interaction.response.defer()  # ¡Añade esta línea!
 
