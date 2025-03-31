@@ -76,10 +76,10 @@ async def connect(interaction: discord.Interaction):
 
 @bot.tree.command(name="play", description="Play a song")
 async def play(interaction: discord.Interaction, input: str):
-    await interaction.response.defer()  # ¡Primera línea del comando!
-
-    await interaction.response.defer()  # ¡Añade esta línea!
-
+    from Youtube import play as yt_play, search_youtube
+    
+    await interaction.response.defer()  # Línea crítica
+    
     try:
         if not interaction.user.voice:
             embed = discord.Embed(
@@ -87,13 +87,19 @@ async def play(interaction: discord.Interaction, input: str):
                 description="Join a voice channel first!",
                 color=discord.Color.red()
             )
-            await interaction.followup.send(embed=embed)  # Usar followup, no response
+            await interaction.followup.send(embed=embed)  # Usar followup
             return
 
         title, url = await search_youtube(input)
 
         if url:
             await yt_play(interaction, bot, url, title)
+            embed = discord.Embed(
+                title="🎶 Song Added",
+                description=f"**{title}** added to the queue.",
+                color=discord.Color.green()
+            )
+            await interaction.followup.send(embed=embed)
         else:
             embed = discord.Embed(
                 title="⚠️ Error",
@@ -104,8 +110,8 @@ async def play(interaction: discord.Interaction, input: str):
 
     except Exception as e:
         embed = discord.Embed(
-            title="❌ Error",
-            description="Failed to play the song.",
+            title="❌ Critical Error",
+            description="Check logs for details.",
             color=discord.Color.red()
         )
         await interaction.followup.send(embed=embed)
