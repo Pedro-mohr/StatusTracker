@@ -78,6 +78,8 @@ async def connect(interaction: discord.Interaction):
 async def play(interaction: discord.Interaction, input: str):
     from Youtube import play as yt_play, search_youtube
 
+    await interaction.response.defer()  # ¡Añade esta línea!
+
     try:
         if not interaction.user.voice:
             embed = discord.Embed(
@@ -85,7 +87,7 @@ async def play(interaction: discord.Interaction, input: str):
                 description="Join a voice channel first!",
                 color=discord.Color.red()
             )
-            await interaction.response.send_message(embed=embed)
+            await interaction.followup.send(embed=embed)  # Usar followup, no response
             return
 
         title, url = await search_youtube(input)
@@ -98,7 +100,7 @@ async def play(interaction: discord.Interaction, input: str):
                 description="No results found.",
                 color=discord.Color.orange()
             )
-            await interaction.response.send_message(embed=embed)
+            await interaction.followup.send(embed=embed)
 
     except Exception as e:
         embed = discord.Embed(
@@ -106,7 +108,7 @@ async def play(interaction: discord.Interaction, input: str):
             description="Failed to play the song.",
             color=discord.Color.red()
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
         print(f"Error: {e}")
 
 @bot.tree.command(name="queue", description="Show queue")
