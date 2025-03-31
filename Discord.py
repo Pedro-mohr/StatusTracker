@@ -79,15 +79,14 @@ async def play(interaction: discord.Interaction, input: str):
     from Youtube import play as yt_play, search_youtube
     from Spotify import get_spotify_tracks
 
-    await interaction.response.defer()
+    try:
+        await interaction.response.defer(ephemeral=False)  # ¡Ephemeral=False para mensajes públicos!
+    except discord.NotFound:
+        return  # Ignorar si la interacción ya expiró
 
     try:
         if not interaction.user.voice:
-            embed = discord.Embed(
-                title="❌ Error",
-                description="Join a voice channel first!",
-                color=discord.Color.red()
-            )
+            embed = discord.Embed(...)
             await interaction.followup.send(embed=embed)
             return
 
