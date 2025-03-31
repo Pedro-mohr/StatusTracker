@@ -77,9 +77,10 @@ async def connect(interaction: discord.Interaction):
 @bot.tree.command(name="play", description="Play a song")
 async def play(interaction: discord.Interaction, input: str):
     from Youtube import play as yt_play, search_youtube
-    
-    await interaction.response.defer()  # Línea crítica
-    
+    from Spotify import get_spotify_tracks
+
+    await interaction.response.defer()
+
     try:
         if not interaction.user.voice:
             embed = discord.Embed(
@@ -87,36 +88,50 @@ async def play(interaction: discord.Interaction, input: str):
                 description="Join a voice channel first!",
                 color=discord.Color.red()
             )
-            await interaction.followup.send(embed=embed)  # Usar followup
+            await interaction.followup.send(embed=embed)
             return
 
-        title, url = await search_youtube(input)
+        # Si es un enlace de Spotify
+        if "spotify.com" in input:
+            tracks = get_spotify_tracks(input)
+            if not tracks:
+                await interaction.followup.send("⚠️ Invalid Spotify link.")
+                return
 
-        if url:
-            await yt_play(interaction, bot, url, title)
+            # Añadir cada canción a la cola
+            for track in tracks:
+                title, url = await search_youtube(track)
+                if url:
+                    await yt_play(interaction, bot, url, title)
+
             embed = discord.Embed(
-                title="🎶 Song Added",
-                description=f"**{title}** added to the queue.",
+                title="🎶 Spotify Playlist Added",
+                description=f"Added {len(tracks)} songs from Spotify.",
                 color=discord.Color.green()
             )
             await interaction.followup.send(embed=embed)
-        else:
-            embed = discord.Embed(
-                title="⚠️ Error",
-                description="No results found.",
-                color=discord.Color.orange()
-            )
-            await interaction.followup.send(embed=embed)
+
+        else:  # Si es YouTube
+            title, url = await search_youtube(input)
+            if url:
+                await yt_play(interaction, bot, url, title)
+            else:
+                embed = discord.Embed(
+                    title="⚠️ Error",
+                    description="No results found.",
+                    color=discord.Color.orange()
+                )
+                await interaction.followup.send(embed=embed)
 
     except Exception as e:
         embed = discord.Embed(
-            title="❌ Critical Error",
-            description="Check logs for details.",
+            title="❌ Error",
+            description="Failed to play the song.",
             color=discord.Color.red()
         )
         await interaction.followup.send(embed=embed)
         print(f"Error: {e}")
-
+        
 @bot.tree.command(name="queue", description="Show queue")
 async def queue(interaction: discord.Interaction):
     from Youtube import playlist
